@@ -2,7 +2,7 @@
 import { useState, useEffect } from "react";
 import { ResponsiveContainer, LineChart, Line, BarChart, Bar, CartesianGrid, XAxis, YAxis, Tooltip, } from "recharts";
 import { TrendingDown, TrendingUp, Download } from "lucide-react";
-import Image from "next/image";
+
 
 const CryptoDashboard = ()=> {
 
@@ -17,10 +17,10 @@ const [selectedCrypto, setSelectedCrypto] = useState('bitcoin');
 useEffect( ()=> {
 const fetchCryptoData = async() => {
   try{
-    const rensponse = await fetch(
+    const response = await fetch(
       'https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&order=market_cap_desc&per_page=10&page=1'
     );//fine fetch
-    const data = await responseCookiesToRequestCookies.json();
+    const data = await response.json();
     setCryptoData(data);
     setLoading(false)
   }//fine try
@@ -55,7 +55,9 @@ const fetchPriceHistory = async ()=> {
     console.error('Errore fetching storico:', error)
   }
 }//fine async fetch
-
+  if (selectedCrypto) {
+    fetchPriceHistory();
+  }
 }, [selectedCrypto, timeRange]
 
 )//fine useEffect
@@ -65,7 +67,7 @@ const formatMarketCap = (value) => {
   if (value >= 1e12) return `$${(value/1e12).toFixed(2)} Trilioni`;
   if (value >= 1e9) return `$${(value/1e9).toFixed(2)} Miliardi`;
   if (value >= 1e6) return `$${(value/1e6).toFixed(2)} Milioni`;
-  return `$${value.toLocaleDateString()}`
+  return `$${value.toLocaleString()}`
 }
 
 //funzione per formattare il priceChange
@@ -90,6 +92,35 @@ const formatPriceChange = (change)=> {
   )
 }
 
+//funzione per esportare in CSV
+  const exportToCSV = () => {
+    const csvContent = [
+      ['Cryptocurrency', 'Price (USD)', '24h Change (%)', 'Market Cap (USD)'],
+      ...cryptoData.map(crypto => [
+        crypto.name,
+        crypto.current_price,
+        crypto.price_change_percentage_24h.toFixed(2),
+        crypto.market_cap
+      ])
+    ].map(row => row.join(',')).join('\n');
+
+    const blob = new Blob([csvContent], { type: 'text/csv' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'crypto_data.csv';
+    a.click();
+  };
+
+if(loading) {
+  return (
+    <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="text-xl text-gray-600">Loading...</div>
+    </div>
+  )
+}
+
+
 return (
 <div className="min-h-screen bg-gray-50 p-6"> 
   <div className="max-w-7xl mx-auto">
@@ -97,6 +128,15 @@ return (
       <h1 className="text-3xl font-bold text-gray-900">
         Crypto Market Dashboard
       </h1>
+      <button onClick={exportToCSV} 
+      className="flex items-center 
+      bg-blue-600 text-white hover:bg-blue-700
+      transition-colors
+      px-4 py-2
+      rounded-lg"> 
+        <Download className="w-4 h-4 mr-2"/>
+        Export CSV 
+      </button>
     </div>
 
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 mb-8">
@@ -112,7 +152,7 @@ return (
             onClick={()=> setSelectedCrypto(crypto.id)}
             >
               <div className="flex items-center mb-2">
-                <Image src={crypto.image}
+                <img src={crypto.image}
                 alt={crypto.name}
                 className="w-6 h-6 mr-2"/>
                 <span className="font-semibold text-sm">
@@ -123,7 +163,7 @@ return (
                 ${crypto.current_price.toLocaleString()}
               </div>
               <div className="text-sm">
-                {formatPriceChange(crypto.price_change_percentage_24g)}
+                {formatPriceChange(crypto.price_change_percentage_24h)}
               </div>
             </div>
           )
@@ -184,7 +224,48 @@ return (
       </div>
     </div>
 
-    
+    <div className="bg-white rounded-lg mt-8 shadow overflow-hidden">
+      <div className="p-6">
+        <h2 className="text-xl font-semibold mb-4">Top10 Crypto</h2>
+        
+        <div className="overflow-x-auto">
+          <table className="w-full">
+            <thead>
+              <tr className="border-b">
+                <th className="text-left py-3 px-4">Rank</th>
+                <th className="text-left py-3 px-4">Nome</th>
+                <th className="text-left py-3 px-4">Prezzo</th>
+                <th className="text-left py-3 px-4">24h Change</th>
+                <th className="text-left py-3 px-4">Market Cap</th>
+              </tr>
+            </thead>
+            <tbody>
+              {
+                cryptoData.map( (crypto, index) => (
+                  <tr key={crypto.id} className="border-b hover:bg-gray-50">
+                    <td className="py-3 px-4">{index + 1}</td>
+                    <td className="py-3 px-4">
+                      <div className="flex items-center">
+                        <img src={crypto.image} alt={crypto.name}
+                        className="w-6 h-6 mr-3"/>
+                        <div>
+                          <div className="font-semibold"> {crypto.name} </div>
+                          <div className="text-sm text-gray-500"> {crypto.symbol.toUpperCase()} </div>
+                        </div>
+                      </div>
+                    </td>
+                    <td className="py-3 px-4 font-semibold">${crypto.current_price.toLocaleString()}</td>
+                    <td className="py-3 px-4">{formatPriceChange(crypto.price_change_percentage_24h)}</td>
+                    <td className="py-3 px-4">{formatMarketCap(crypto.market_cap)}</td>
+                  </tr>
+                )
+                )
+              }
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
 
 
   </div>
